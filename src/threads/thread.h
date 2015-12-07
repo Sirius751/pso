@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -90,9 +91,20 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
-  	int intitial_priority;				/* Thread's initial priority */
+    /*Added for THREADS project*/
+
+    int init_priority;                  /* Initial (non-donated) priority. */
+
+    struct lock *wait_on_lock;          /* The lock the thread is waiting on - NULL if not waiting for any lock */
+    struct list donations;              /* The list of other threads waiting on locks the thread has */
+    struct list_elem donation_elem;     /* The list element which can be added to another threads donation list */
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+    int nice;         /*thread nice value*/
+
+    int recent_cpu;   /*recent_cpu value*/
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -139,4 +151,10 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+/* Added for threads project*/
+bool compare_priority (struct list_elem *a, struct list_elem *b);
+void test_priority(void);
+void donate_priority(void);
+void update_priority(void);
+void release_waiting_threads(struct lock *lock);
 #endif /* threads/thread.h */

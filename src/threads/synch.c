@@ -196,7 +196,15 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  if (lock->holder)
+  {
+    thread_current()->wait_on_lock = lock;
+    list_insert_ordered(&lock->holder->donations, &thread_current()->donation_elem, (list_less_func *) &compare_priority, NULL);
+    donate_priority();
+  }
   sema_down (&lock->semaphore);
+
+  thread_current()->wait_on_lock = NULL;
   lock->holder = thread_current ();
 }
 
@@ -214,9 +222,15 @@ lock_try_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!lock_held_by_current_thread (lock));
 
+  /* Added for Threads project */
+  enum intr_level old_level = intr_disable();
   success = sema_try_down (&lock->semaphore);
-  if (success)
+  if (success) 
+  {
+    thread_current()->wait_on_lock = NULL;
     lock->holder = thread_current ();
+  }
+  intr_set_level(old_level);
   return success;
 }
 
@@ -231,8 +245,17 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  /* Added for Threads project */
+  enum intr_level old_level = intr_disable();
   lock->holder = NULL;
+
+      release_waiting_threads(lock);
+      // ^ Removes threads from donation list waiting for released lock
+      update_priority();
+      // ^ Updates priority
+
   sema_up (&lock->semaphore);
+  intr_set_level (old_level);
 }
 
 /* Returns true if the current thread holds LOCK, false
